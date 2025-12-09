@@ -1,0 +1,47 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cbo-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: CBO
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+      - ./cbo2002-ocupacao.csv:/docker-entrypoint-initdb.d/cbo.csv
+    networks:
+      - cbo-net
+
+  solr:
+    image: solr:9
+    container_name: cbo-solr
+    ports:
+      - "8983:8983"
+    command:
+      - solr-precreate
+      - cbo
+    volumes:
+      - ./solr-config:/var/solr/data
+    networks:
+      - cbo-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cbo-backend
+    depends_on:
+      - db
+      - solr
+    ports:
+      - "5000:5000"
+    networks:
+      - cbo-net
+
+networks:
+  cbo-net:
+    driver: bridge

@@ -1,16 +1,6 @@
-from flask import Flask
-from flask_restful import Api
+from helpers.application import create_app
 
-app = Flask(__name__)
+app = create_app()
 
-app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql+psycopg2://postgres:123456@localhost:5432/habits"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-api = Api(app)
-
-
-from resources.resource_cbo import CBOListResource, CBODetailResource
-
-# Registro dos endpoints
-api.add_resource(CBOListResource, "/cbo")
-api.add_resource(CBODetailResource, "/cbo/<string:codigo>")
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
