@@ -2,6 +2,7 @@ from flask_restful import Resource, reqparse
 from flask import request
 from helpers.database import db
 from models.cbo_model import TableCBO
+import requests
 
 
 def cbo_to_dict(cbo: TableCBO):
@@ -87,3 +88,24 @@ class CBODetailResource(Resource):
         db.session.commit()
 
         return {"message": "CBO removido com sucesso"}, 200
+    
+
+class CBOSearchResource(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("q", required=True, location="args")
+        args = parser.parse_args()
+
+        termo = (args["q"] or "").strip()
+
+        solr_url = "http://solr:8983/solr/cbo/select"
+        params = {
+            "q": f"TITULO:{termo}* CODIGO:{termo}*",
+            "defType": "edismax",
+            "qf": "TITULO^3 CODIGO^2",
+            "rows": 20,
+            "wt": "json",  
+        }
+
+        response = requests.get(solr_url, params=params, timeout=5)
+        return response.json(), response.status_code

@@ -1,0 +1,78 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cbo-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: CBO
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+      - cbo-files:/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d CBO"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - cbo-net
+
+  db_loader:
+    image: postgres:16-alpine
+    container_name: cbo-db-loader
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: CBO
+      PGPASSWORD: postgres
+    volumes:
+      - ./db/load_cbo.sh:/load_cbo.sh:ro
+      - ./db/init/cbo2002-ocupacao.csv:/src/cbo2002-ocupacao.csv:ro
+      - cbo-files:/data
+    entrypoint: ["/bin/sh", "/load_cbo.sh"]
+    networks:
+      - cbo-net
+
+  solr:
+    build:
+      context: .
+      dockerfile: solr.Dockerfile
+      args:
+        CORE: cbo
+    container_name: cbo-solr
+    ports:
+      - "8983:8983"
+    command: ["solr-precreate", "cbo", "/opt/solr/server/solr/configsets/cbo"]
+    volumes:
+      - solr-data:/var/solr
+    networks:
+      - cbo-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cbo-backend
+    depends_on:
+      db_loader:
+        condition: service_completed_successfully
+      solr:
+        condition: service_started
+    ports:
+      - "5000:5000"
+    networks:
+      - cbo-net
+
+networks:
+  cbo-net:
+    driver: bridge
+
+volumes:
+  dbdata:
+  solr-data:
+  cbo-files:
